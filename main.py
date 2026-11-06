@@ -21,7 +21,10 @@ def main() -> None:
     plan = scheduler.build_daily_plan()
 
     print("=" * 60)
-    print(f"  Today's Schedule for {owner.name}'s pets")
+    if owner.name.lower().endswith("s"):
+        print(f"  Today's Schedule for {owner.name}' pets")
+    else:
+        print(f"  Today's Schedule for {owner.name}'s pets")
     print("=" * 60)
     for entry in plan:
         print(f"  {entry.start_time} - {entry.end_time}   "
