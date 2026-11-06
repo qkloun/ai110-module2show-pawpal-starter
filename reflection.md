@@ -14,10 +14,14 @@ Three core actions that the user should be able to perform 3 core actions:
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+For the initial design for the UML, I had a total of 4 classes; scheduler, owner, pet, and task in that hierarchy order I listed them out. An Owner has one or more Pets, each Pet has its own list of Tasks, and the Scheduler works from the Owner to build a daily plan. I kept data and logic separate: the first three classes mostly hold information, and the Scheduler holds the planning logic, which makes it easier to test.
+
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+
+The original design was a bit more complicated as it had more information relating to what the pet was such as its breed. However this was changed as it added unnecessary complexity to the design.
 
 ---
 
