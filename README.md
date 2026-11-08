@@ -65,19 +65,39 @@ Paste a sample of your app's CLI or Streamlit output here so a reader can see wh
 
 ## 🧪 Testing PawPal+
 
-```bash
-# Run the full test suite:
-pytest
+Run the full test suite from the project root:
 
-# Run with coverage:
-pytest --cov
+```bash
+python -m pytest
 ```
+
+The 22 tests in `tests/test_pawpal.py` use a fixed date, so results don't depend on the day you run them. They cover:
+
+- **Basic behavior:** marking a task complete, adding tasks to a pet, rejecting invalid tasks (zero duration, unknown priority, impossible times) and duplicate pet names.
+- **Sorting:** `sort_by_time()` returns tasks in chronological order, handles unpadded hours like `"8:00"`, and puts untimed tasks last; the daily plan places high-priority tasks first with correct start times.
+- **Filtering and time budget:** filtering by pet and completion status, skipping tasks that don't fit the available minutes, an empty plan for a pet with no tasks, and overdue tasks still being scheduled.
+- **Recurring tasks:** completing a daily task creates a copy due the next day, weekly tasks repeat in 7 days, dates roll over month ends, one-time tasks don't repeat, tomorrow's copy stays out of today's plan, and completing an unknown task fails safely.
+- **Conflict detection:** same-time tasks are flagged for the same pet and for different pets, partial overlaps are flagged, back-to-back tasks are not, and completed tasks are ignored.
 
 Sample test output:
 
 ```
-# Paste your pytest output here
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0
+rootdir: /mnt/user-data/outputs
+configfile: pytest.ini
+testpaths: tests
+plugins: platformdirs-4.13.0, anyio-4.16.0
+collected 22 items
+
+tests/test_pawpal.py ......................                              [100%]
+
+============================== 22 passed in 0.02s ==============================
 ```
+
+**Confidence level: ★★★★☆ (4/5)**
+
+All core scheduling behaviors pass, including the main edge cases for sorting, recurrence, and conflicts. I'm holding back one star because the Streamlit UI is only tested by hand, conflict detection warns but doesn't resolve clashes, and some cases aren't covered yet, such as tasks running past midnight or two open tasks with the same title on the same pet.
 
 ## 📐 Smarter Scheduling
 
