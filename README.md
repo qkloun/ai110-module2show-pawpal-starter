@@ -1,26 +1,18 @@
-# PawPal+ (Module 2 Project)
+# 🐾 PawPal+
 
-You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
+PawPal+ is a Streamlit app that helps a busy pet owner stay consistent with pet care. You enter your pets, their care tasks, and how much time you have today, and PawPal+ builds a daily plan that puts the most important tasks first, warns you about time clashes, explains its choices, and keeps recurring tasks coming back automatically.
 
-## Scenario
+## ✨ Features
 
-A busy pet owner needs help staying consistent with pet care. They want an assistant that can:
-
-- Track pet care tasks (walks, feeding, meds, enrichment, grooming, etc.)
-- Consider constraints (time available, priority, owner preferences)
-- Produce a daily plan and explain why it chose that plan
-
-Your job is to design the system first (UML), then implement the logic in Python, then connect it to the Streamlit UI.
-
-## What you will build
-
-Your final app should:
-
-- Let a user enter basic owner + pet info
-- Let a user add/edit tasks (duration + priority at minimum)
-- Generate a daily schedule/plan based on constraints and priorities
-- Display the plan clearly (and ideally explain the reasoning)
-- Include tests for the most important scheduling behaviors
+- **Owner and pet profiles:** set your name, the minutes you have for pet care today, and when your day starts; add any number of pets (duplicate names are rejected).
+- **Task tracking:** each task has a title, duration, priority (low/medium/high), optional preferred time, and a repeat setting (daily, weekly, or once). Invalid input like a zero-minute task or a time of "25:00" is rejected with a clear message.
+- **Priority-first daily plan:** tasks are placed back to back from your start time, high priority first, then by preferred time, then shortest first, so critical care like feeding and medication always makes the cut.
+- **Time-budget filtering:** tasks that don't fit in your remaining minutes are skipped and listed with the reason, instead of silently overbooking your day.
+- **Sorting by time:** a chronological view of all tasks, ordered by due date and then "HH:MM" time, with untimed tasks last.
+- **Filtering by pet and status:** view one pet's tasks, only pending or only completed tasks, or any combination.
+- **Conflict warnings:** overlapping preferred times are detected (same pet or different pets) and shown as warnings that never crash the app; back-to-back tasks are not counted as conflicts.
+- **Daily and weekly recurrence:** marking a recurring task complete automatically creates the next one, due tomorrow or in a week; future copies stay out of today's plan, and overdue tasks stay in it.
+- **Plan explanations:** every scheduled task shows why it was chosen, and the app explains how the plan was built.
 
 ## Getting started
 
@@ -32,34 +24,33 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Suggested workflow
+### Run the app
 
-1. Read the scenario carefully and identify requirements and edge cases.
-2. Draft a UML diagram (classes, attributes, methods, relationships).
-3. Convert UML into Python class stubs (no logic yet).
-4. Implement scheduling logic in small increments.
-5. Add tests to verify key behaviors.
-6. Connect your logic to the Streamlit UI in `app.py`.
-7. Refine UML so it matches what you actually built.
+```bash
+streamlit run app.py
+```
+
+### Run the terminal demo
+
+```bash
+python main.py
+```
 
 ## 🖥️ Sample Output
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+The daily plan from `python main.py`:
 
 ```
 ============================================================
-  Today's Schedule for Yunus's pets
+  Today's Schedule for Yunus' pets
 ============================================================
-  07:30 - 08:00   Loki   Morning walk       [high]
-  08:00 - 08:10   Luna   Breakfast          [high]
-  08:10 - 08:15   Loki   Heartworm pill     [high]
-  08:15 - 08:25   Luna   Clean litter box   [medium]
-  08:25 - 08:45   Luna   Play session       [medium]
+  07:30 - 07:35   Mochi  Heartworm pill     [high]
+  07:35 - 07:45   Mochi  Breakfast          [high]
+  07:45 - 07:55   Luna   Clean litter box   [medium]
+  07:55 - 08:00   Luna   Brush teeth        [medium]
+  08:00 - 08:20   Luna   Play session       [medium]
 ------------------------------------------------------------
-  Time used: 75 of 75 minutes
-
-  Not scheduled today:
-    - Loki: Brush coat (needs 15 min but only 0 min left)
+  Time used: 50 of 75 minutes
 ============================================================
 ```
 
@@ -126,14 +117,124 @@ All scheduling logic lives in `pawpal_system.py`. The `Scheduler` reads every ta
 
 Each `Task` has a `frequency` ("daily", "weekly", or "once") and a `due_date`. `Scheduler.complete_task()` marks the earliest open task with that title done, then calls `Task.next_occurrence()`, which uses `timedelta(days=1)` or `timedelta(weeks=1)` to create a fresh copy with the next due date and adds it to the same pet. `timedelta` handles month and year rollovers automatically.
 
+## 🏗️ System Architecture
+
+The final class diagram is in [`diagrams/uml_final.mmd`](diagrams/uml_final.mmd) (the Phase 1 draft is in `diagrams/uml_draft.mmd`). Paste either file into [mermaid.live](https://mermaid.live/) to view it.
+
+- `Owner` holds the day's time budget and a list of `Pet`s; each `Pet` owns its `Task`s.
+- `Task` knows how to validate itself, report whether it's due, and create its next occurrence.
+- `Scheduler` reads every task through `Owner.get_all_tasks()` and builds a plan made of `ScheduledTask` entries (start time, pet, task, and reason).
+- All logic lives in `pawpal_system.py`; `app.py` (Streamlit) and `main.py` (terminal) only call it, so the same rules are tested once and used everywhere.
+
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### Main UI features
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+The app opens with a **Your day** panel for the owner's name, minutes available, and day start time. Below it are three tabs:
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+- **Pets:** add a pet with a name and species, and see a table of your pets with how many open tasks each has.
+- **Tasks:** add a task for a chosen pet; mark any open task complete; and browse all tasks in a table you can filter by pet and by status (pending, completed, or all), sorted by due date and preferred time.
+- **Today's schedule:** see summary numbers (tasks scheduled, minutes used, tasks skipped), any time-conflict warnings, the plan table with a reason for each task, a list of tasks that didn't fit, and an expandable explanation of how the plan was built.
+
+### Example workflow
+
+1. In **Your day**, enter "Jordan", set 75 minutes available, and a 07:30 start.
+2. In **Pets**, add Mochi (dog) and Luna (cat). Both appear in the pets table.
+3. In **Tasks**, add Mochi's "Morning walk" (30 min, high, 07:30, daily) and "Breakfast" (10 min, high, 09:00), then Luna's "Clean litter box" (10 min, medium, 09:00) and "Play session" (20 min, medium, 17:00).
+4. Open **Today's schedule**. A yellow warning reports that Mochi's Breakfast and Luna's Clean litter box are both at 09:00, with a suggestion to change one time. The plan table lists the high-priority tasks first, each with its time slot and reason.
+5. Lower the available minutes to 45. The skipped count goes up, and a warning lists the two medium-priority tasks that no longer fit and why.
+6. Back in **Tasks**, mark Mochi's "Morning walk" complete. A message confirms the next walk is due tomorrow, and the task table (set to "All") shows both the completed walk and tomorrow's copy.
+7. Return to **Today's schedule**. The walk is gone from today's plan, and tomorrow's copy doesn't appear.
+
+### Key Scheduler behaviors shown
+
+- **Priority sorting:** high-priority tasks are scheduled first, and same-priority tasks follow their preferred times (`Scheduler.sort_tasks()`).
+- **Sorting and filtering:** the Tasks tab table uses `Scheduler.filter_tasks()` and `Scheduler.sort_by_time()`.
+- **Conflict warnings:** `Scheduler.detect_conflicts()` results appear above the plan so the owner sees them before trusting it.
+- **Time budget:** tasks that don't fit are skipped with a reason (`Scheduler.build_daily_plan()`).
+- **Recurrence:** completing a daily or weekly task creates its next occurrence (`Scheduler.complete_task()`, `Task.next_occurrence()`).
+
+### CLI output from `main.py`
+
+`main.py` adds tasks out of order, checks sorting and filtering, detects conflicts, completes recurring tasks, and then prints today's schedule:
+
+```
+============================================================
+  Sorting and filtering checks
+============================================================
+
+All tasks, unsorted (grouped by pet, in the order added):
+  Sun Nov 08  18:00  Mochi  Brush coat         [low, weekly] (todo)
+  Sun Nov 08  08:00  Mochi  Heartworm pill     [high, daily] (todo)
+  Sun Nov 08  07:30  Mochi  Morning walk       [high, daily] (todo)
+  Sun Nov 08  09:00  Mochi  Breakfast          [high, daily] (todo)
+  Sun Nov 08  17:00  Luna   Play session       [medium, daily] (todo)
+  Sun Nov 08  09:00  Luna   Clean litter box   [medium, daily] (todo)
+  Sun Nov 08  07:45  Luna   Breakfast          [high, daily] (done)
+  Sun Nov 08  09:05  Luna   Brush teeth        [medium, daily] (todo)
+  Sun Nov 08  --:--  Luna   Trim claws         [low, once] (todo)
+  Mon Nov 09  07:45  Luna   Breakfast          [high, daily] (todo)
+
+Sorted by time:
+  Sun Nov 08  07:30  Mochi  Morning walk       [high, daily] (todo)
+  Sun Nov 08  07:45  Luna   Breakfast          [high, daily] (done)
+  Sun Nov 08  08:00  Mochi  Heartworm pill     [high, daily] (todo)
+  Sun Nov 08  09:00  Mochi  Breakfast          [high, daily] (todo)
+  Sun Nov 08  09:00  Luna   Clean litter box   [medium, daily] (todo)
+  Sun Nov 08  09:05  Luna   Brush teeth        [medium, daily] (todo)
+  Sun Nov 08  17:00  Luna   Play session       [medium, daily] (todo)
+  Sun Nov 08  18:00  Mochi  Brush coat         [low, weekly] (todo)
+  Sun Nov 08  --:--  Luna   Trim claws         [low, once] (todo)
+  Mon Nov 09  07:45  Luna   Breakfast          [high, daily] (todo)
+
+Only Luna's tasks:
+  Sun Nov 08  17:00  Luna   Play session       [medium, daily] (todo)
+  Sun Nov 08  09:00  Luna   Clean litter box   [medium, daily] (todo)
+  Sun Nov 08  07:45  Luna   Breakfast          [high, daily] (done)
+  Sun Nov 08  09:05  Luna   Brush teeth        [medium, daily] (todo)
+  Sun Nov 08  --:--  Luna   Trim claws         [low, once] (todo)
+  Mon Nov 09  07:45  Luna   Breakfast          [high, daily] (todo)
+
+Only completed tasks:
+  Sun Nov 08  07:45  Luna   Breakfast          [high, daily] (done)
+
+Mochi's pending tasks, sorted by time:
+  Sun Nov 08  07:30  Mochi  Morning walk       [high, daily] (todo)
+  Sun Nov 08  08:00  Mochi  Heartworm pill     [high, daily] (todo)
+  Sun Nov 08  09:00  Mochi  Breakfast          [high, daily] (todo)
+  Sun Nov 08  18:00  Mochi  Brush coat         [low, weekly] (todo)
+
+============================================================
+  Conflict checks
+============================================================
+  WARNING: Mochi's 'Breakfast' (09:00-09:10) overlaps Luna's 'Clean litter box' (09:00-09:10) [different pets]
+  WARNING: Mochi's 'Breakfast' (09:00-09:10) overlaps Luna's 'Brush teeth' (09:05-09:10) [different pets]
+  WARNING: Luna's 'Clean litter box' (09:00-09:10) overlaps Luna's 'Brush teeth' (09:05-09:10) [same pet]
+
+============================================================
+  Recurring task checks
+============================================================
+  Completed Mochi's Morning walk (daily) -> next one due Mon Nov 09
+  Completed Mochi's Brush coat (weekly) -> next one due Sun Nov 15
+  Completed Luna's Trim claws -> no repeat
+
+Mochi's tasks after completing:
+  Sun Nov 08  07:30  Mochi  Morning walk       [high, daily] (done)
+  Sun Nov 08  08:00  Mochi  Heartworm pill     [high, daily] (todo)
+  Sun Nov 08  09:00  Mochi  Breakfast          [high, daily] (todo)
+  Sun Nov 08  18:00  Mochi  Brush coat         [low, weekly] (done)
+  Mon Nov 09  07:30  Mochi  Morning walk       [high, daily] (todo)
+  Sun Nov 15  18:00  Mochi  Brush coat         [low, weekly] (todo)
+
+============================================================
+  Today's Schedule for Jordan's pets
+============================================================
+  07:30 - 07:35   Mochi  Heartworm pill     [high]
+  07:35 - 07:45   Mochi  Breakfast          [high]
+  07:45 - 07:55   Luna   Clean litter box   [medium]
+  07:55 - 08:00   Luna   Brush teeth        [medium]
+  08:00 - 08:20   Luna   Play session       [medium]
+------------------------------------------------------------
+  Time used: 50 of 75 minutes
+============================================================
+```

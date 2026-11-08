@@ -1,5 +1,5 @@
 classDiagram
-    %% PawPal+ working UML draft (Phase 1). Update in Phase 6 to match the final code.
+    %% PawPal+ final UML: matches pawpal_system.py
 
     class Owner {
         +str name
@@ -7,8 +7,8 @@ classDiagram
         +str day_start
         +List~Pet~ pets
         +add_pet(pet: Pet) None
-        +get_pet(name: str) Pet
-        +get_all_tasks() List~Task~
+        +get_pet(name: str) Optional~Pet~
+        +get_all_tasks() List~tuple~
     }
 
     class Pet {
@@ -16,6 +16,7 @@ classDiagram
         +str species
         +List~Task~ tasks
         +add_task(task: Task) None
+        +remove_task(title: str) bool
         +get_pending_tasks() List~Task~
     }
 
@@ -23,19 +24,43 @@ classDiagram
         +str title
         +int duration_minutes
         +str priority
+        +str time
+        +str frequency
         +bool completed
+        +date due_date
         +mark_complete() None
+        +is_due(on: date) bool
+        +next_occurrence() Optional~Task~
         +priority_score() int
+    }
+
+    class ScheduledTask {
+        +str start_time
+        +Pet pet
+        +Task task
+        +str reason
+        +end_time() str
     }
 
     class Scheduler {
         +Owner owner
-        +List~tuple~ plan
-        +sort_tasks(tasks: List~Task~) List~Task~
-        +build_daily_plan() List~tuple~
+        +date today
+        +List~ScheduledTask~ plan
+        +List~tuple~ skipped
+        +get_pending_tasks() List~tuple~
+        +sort_tasks(pairs) List~tuple~
+        +sort_by_time(pairs) List~tuple~
+        +filter_tasks(pet_name, completed) List~tuple~
+        +detect_conflicts() List~str~
+        +build_daily_plan() List~ScheduledTask~
+        +complete_task(pet_name: str, title: str) Optional~Task~
         +explain_plan() str
     }
 
     Owner "1" o-- "*" Pet : has
     Pet "1" *-- "*" Task : has
-    Scheduler --> Owner : plans for
+    Scheduler --> Owner : reads tasks via get_all_tasks()
+    Scheduler "1" *-- "*" ScheduledTask : builds plan of
+    ScheduledTask --> Pet : for
+    ScheduledTask --> Task : schedules
+    Task ..> Task : next_occurrence() creates
