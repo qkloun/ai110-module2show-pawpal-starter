@@ -1,5 +1,3 @@
-"""PawPal+ logic layer: backend classes for pets, tasks, and scheduling."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -43,7 +41,8 @@ class Task:
         if self.frequency not in FREQUENCIES:
             raise ValueError(f"Frequency must be one of {list(FREQUENCIES)}")
         if self.time is not None:
-            to_minutes(self.time)  # raises ValueError if badly formatted
+            # Validate, then store zero-padded ("8:00" -> "08:00") so times sort as strings
+            self.time = to_hhmm(to_minutes(self.time))
 
     def mark_complete(self) -> None:
         """Mark this task as done."""
@@ -117,7 +116,7 @@ class ScheduledTask:
 
     @property
     def end_time(self) -> str:
-        """Return the “HH:MM” time this task finishes."""
+        """Return the "HH:MM" time this task finishes."""
         return to_hhmm(to_minutes(self.start_time) + self.task.duration_minutes)
 
 
@@ -143,6 +142,25 @@ class Scheduler:
             preferred = to_minutes(task.time) if task.time else 24 * 60
             return (-task.priority_score(), preferred, task.duration_minutes)
         return sorted(pairs, key=key)
+
+    def sort_by_time(self, pairs: list[tuple[Pet, Task]] | None = None
+                     ) -> list[tuple[Pet, Task]]:
+        """Return (pet, task) pairs ordered by preferred time, untimed tasks last."""
+        if pairs is None:
+            pairs = self.owner.get_all_tasks()
+        return sorted(pairs, key=lambda pair: (pair[1].time is None, pair[1].time or ""))
+
+    def filter_tasks(self, pet_name: str | None = None, completed: bool | None = None
+                     ) -> list[tuple[Pet, Task]]:
+        """Return (pet, task) pairs matching a pet name and/or completion status."""
+        results = []
+        for pet, task in self.owner.get_all_tasks():
+            if pet_name is not None and pet.name.lower() != pet_name.lower():
+                continue
+            if completed is not None and task.completed != completed:
+                continue
+            results.append((pet, task))
+        return results
 
     def build_daily_plan(self) -> list[ScheduledTask]:
         """Fit tasks into the owner's available time, most important first."""

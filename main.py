@@ -1,39 +1,63 @@
-# Testing scriipt for the system.
 from pawpal_system import Owner, Pet, Scheduler, Task
 
 
-def main() -> None:
-    owner = Owner(name="Yunus", available_minutes=75, day_start="07:30")
+def possessive(name: str) -> str:
+    """Return "James'" or "Jordan's" depending on the last letter."""
+    return f"{name}'" if name.lower().endswith("s") else f"{name}'s"
 
-    mochi = Pet(name="Loki", species="dog")
+
+def print_tasks(heading: str, pairs) -> None:
+    """Print a list of (pet, task) pairs as a small table."""
+    print(f"\n{heading}")
+    if not pairs:
+        print("  (none)")
+    for pet, task in pairs:
+        status = "done" if task.completed else "todo"
+        print(f"  {task.time or '--:--'}  {pet.name:<6} {task.title:<18} "
+              f"[{task.priority}] ({status})")
+
+
+def main() -> None:
+    owner = Owner(name="Jordan", available_minutes=75, day_start="07:30")
+
+    mochi = Pet(name="Mochi", species="dog")
     luna = Pet(name="Luna", species="cat")
     owner.add_pet(mochi)
     owner.add_pet(luna)
 
-    mochi.add_task(Task("Morning walk", 30, "high", time="07:30"))
-    mochi.add_task(Task("Heartworm pill", 5, "high", time="08:00"))
-    mochi.add_task(Task("Brush coat", 15, "low", time="18:00", frequency="weekly"))
-    luna.add_task(Task("Breakfast", 10, "high", time="07:45"))
+    # Added deliberately out of time order
     luna.add_task(Task("Play session", 20, "medium", time="17:00"))
+    mochi.add_task(Task("Brush coat", 15, "low", time="18:00", frequency="weekly"))
+    mochi.add_task(Task("Heartworm pill", 5, "high", time="8:00"))   # not zero-padded
     luna.add_task(Task("Clean litter box", 10, "medium", time="09:00"))
+    mochi.add_task(Task("Morning walk", 30, "high", time="07:30"))
+    luna.add_task(Task("Breakfast", 10, "high", time="07:45"))
+    luna.add_task(Task("Trim claws", 10, "low"))                     # no time
 
     scheduler = Scheduler(owner)
-    plan = scheduler.build_daily_plan()
+    scheduler.complete_task("Luna", "Breakfast")
 
     print("=" * 60)
-    if owner.name.lower().endswith("s"):
-        print(f"  Today's Schedule for {owner.name}' pets")
-    else:
-        print(f"  Today's Schedule for {owner.name}'s pets")
+    print("  Sorting and filtering checks")
+    print("=" * 60)
+    print_tasks("All tasks, unsorted (grouped by pet, in the order added):", owner.get_all_tasks())
+    print_tasks("Sorted by time:", scheduler.sort_by_time())
+    print_tasks("Only Luna's tasks:", scheduler.filter_tasks(pet_name="Luna"))
+    print_tasks("Only completed tasks:", scheduler.filter_tasks(completed=True))
+    print_tasks("Mochi's pending tasks, sorted by time:",
+                scheduler.sort_by_time(scheduler.filter_tasks(pet_name="Mochi",
+                                                              completed=False)))
+
+    plan = scheduler.build_daily_plan()
+    print("\n" + "=" * 60)
+    print(f"  Today's Schedule for {possessive(owner.name)} pets")
     print("=" * 60)
     for entry in plan:
         print(f"  {entry.start_time} - {entry.end_time}   "
               f"{entry.pet.name:<6} {entry.task.title:<18} [{entry.task.priority}]")
     print("-" * 60)
-
     used = sum(entry.task.duration_minutes for entry in plan)
     print(f"  Time used: {used} of {owner.available_minutes} minutes")
-
     if scheduler.skipped:
         print("\n  Not scheduled today:")
         for pet, task, reason in scheduler.skipped:
