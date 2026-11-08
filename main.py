@@ -32,6 +32,8 @@ def main() -> None:
     luna.add_task(Task("Clean litter box", 10, "medium", time="09:00"))
     mochi.add_task(Task("Morning walk", 30, "high", time="07:30"))
     luna.add_task(Task("Breakfast", 10, "high", time="07:45"))
+    mochi.add_task(Task("Breakfast", 10, "high", time="09:00"))     # same time as litter box
+    luna.add_task(Task("Brush teeth", 5, "medium", time="09:05"))   # overlaps litter box
     luna.add_task(Task("Trim claws", 10, "low", frequency="once"))   # no time, one-off
 
     scheduler = Scheduler(owner)
@@ -47,6 +49,15 @@ def main() -> None:
     print_tasks("Mochi's pending tasks, sorted by time:",
                 scheduler.sort_by_time(scheduler.filter_tasks(pet_name="Mochi",
                                                               completed=False)))
+
+    print("\n" + "=" * 60)
+    print("  Conflict checks")
+    print("=" * 60)
+    conflicts = scheduler.detect_conflicts()
+    for warning in conflicts:
+        print(f"  WARNING: {warning}")
+    if not conflicts:
+        print("  No conflicts found.")
 
     print("\n" + "=" * 60)
     print("  Recurring task checks")

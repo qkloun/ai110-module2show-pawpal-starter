@@ -72,3 +72,34 @@ def test_tomorrows_copy_is_not_in_todays_plan():
     scheduler.complete_task("Mochi", "Walk")
 
     assert scheduler.build_daily_plan() == []
+
+
+# --- Conflict detection ---
+
+def test_same_time_tasks_for_different_pets_are_flagged():
+    owner = Owner("Jordan", 60)
+    mochi, luna = Pet("Mochi", "dog"), Pet("Luna", "cat")
+    owner.add_pet(mochi)
+    owner.add_pet(luna)
+    mochi.add_task(Task("Walk", 30, "high", time="08:00", due_date=TODAY))
+    luna.add_task(Task("Feeding", 10, "high", time="08:00", due_date=TODAY))
+
+    warnings = Scheduler(owner, today=TODAY).detect_conflicts()
+
+    assert len(warnings) == 1
+    assert "different pets" in warnings[0]
+
+
+def test_back_to_back_tasks_are_not_a_conflict():
+    scheduler, pet = make_scheduler(Task("Walk", 30, "high", time="08:00", due_date=TODAY))
+    pet.add_task(Task("Pill", 5, "high", time="08:30", due_date=TODAY))
+
+    assert scheduler.detect_conflicts() == []
+
+
+def test_completed_tasks_do_not_cause_conflicts():
+    scheduler, pet = make_scheduler(Task("Walk", 30, "high", time="08:00", due_date=TODAY))
+    pet.add_task(Task("Pill", 5, "high", time="08:10", frequency="once", due_date=TODAY))
+    scheduler.complete_task("Mochi", "Pill")
+
+    assert scheduler.detect_conflicts() == []

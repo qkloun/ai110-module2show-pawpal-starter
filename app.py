@@ -136,6 +136,9 @@ if st.button("Generate schedule", type="primary"):
     scheduler = Scheduler(owner)
     plan = scheduler.build_daily_plan()
 
+    for warning in scheduler.detect_conflicts():
+        st.warning(f"⚠️ Time conflict: {warning}")
+
     if not plan and not scheduler.skipped:
         st.info("No pending tasks to schedule. Add some tasks above.")
     else:

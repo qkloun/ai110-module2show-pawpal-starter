@@ -178,6 +178,28 @@ class Scheduler:
             results.append((pet, task))
         return results
 
+    def detect_conflicts(self) -> list[str]:
+        """Return warnings for today's tasks whose preferred time windows overlap."""
+        timed = [(pet, task) for pet, task in self.get_pending_tasks() if task.time]
+        timed.sort(key=lambda pair: pair[1].time)
+
+        warnings = []
+        for i, (pet_a, task_a) in enumerate(timed):
+            start_a = to_minutes(task_a.time)
+            end_a = start_a + task_a.duration_minutes
+            for pet_b, task_b in timed[i + 1:]:
+                start_b = to_minutes(task_b.time)
+                if start_b >= end_a:
+                    break  # sorted by start, so nothing later can overlap task_a
+                end_b = start_b + task_b.duration_minutes
+                scope = "same pet" if pet_a is pet_b else "different pets"
+                warnings.append(
+                    f"{pet_a.name}'s '{task_a.title}' ({task_a.time}-{to_hhmm(end_a)}) "
+                    f"overlaps {pet_b.name}'s '{task_b.title}' "
+                    f"({task_b.time}-{to_hhmm(end_b)}) [{scope}]"
+                )
+        return warnings
+
     def build_daily_plan(self) -> list[ScheduledTask]:
         """Fit tasks into the owner's available time, most important first."""
         self.plan, self.skipped = [], []

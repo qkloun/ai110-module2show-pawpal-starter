@@ -37,6 +37,8 @@ The original design was a bit more complicated as it had more information relati
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+My scheduler places tasks greedily by priority, from high to low, back to back starting at the owner’s day start, and skips any task that doesn’t fit in the remaining time. A task’s preferred time only breaks ties within the same priority, so a task the owner wants at 08:00 might land at 08:10, and overlapping preferred times produce a warning rather than a rearranged plan. I think this is reasonable for a busy pet owner because it guarantees that critical tasks like feeding and medication always make it into the day. Honoring exact times would mean handling gaps, deciding which task moves when two clash, and dealing with time slots that have already passed, which would make the logic much harder to understand and test. Flagging conflicts instead of resolving them keeps the scheduler predictable and leaves the final call to the owner, who knows their day better than the app does.
+
 ---
 
 ## 3. AI Collaboration

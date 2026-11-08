@@ -81,14 +81,30 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
+All scheduling logic lives in `pawpal_system.py`. The `Scheduler` reads every task through `Owner.get_all_tasks()`, which returns `(pet, task)` pairs so each result knows which pet it belongs to.
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting | `Scheduler.sort_tasks()`, `Scheduler.sort_by_time()` | Plan order: priority, then preferred time, then shortest first. Time view: due date, then "HH:MM", untimed tasks last |
+| Filtering | `Scheduler.filter_tasks()`, `Scheduler.get_pending_tasks()`, `Task.is_due()` | Filter by pet name and/or completion status; the plan only uses unfinished tasks due today or earlier, and skips tasks that don't fit the time left |
+| Conflict handling | `Scheduler.detect_conflicts()` | Flags overlapping time windows for the same pet or different pets; returns warnings instead of raising errors |
+| Recurring tasks | `Task.next_occurrence()`, `Scheduler.complete_task()` | Completing a daily task adds a copy due tomorrow; weekly adds one due in 7 days; "once" tasks don't repeat |
+
+### Sorting
+
+`Scheduler.sort_tasks()` decides the order of the daily plan. Tasks are ordered by priority (high → low), then by preferred time, then by duration, so the most important work is placed first. `Scheduler.sort_by_time()` gives a chronological view instead. It uses `sorted()` with a `lambda` key of `(due_date, has no time, time)`. Times are stored zero-padded (`"8:00"` becomes `"08:00"`), so "HH:MM" strings sort correctly as text.
+
+### Filtering
+
+`Scheduler.filter_tasks(pet_name=None, completed=None)` returns tasks for one pet, tasks with a given completion status, or both combined (for example, Loki's unfinished tasks). Pet names are matched case-insensitively. When building the plan, `Scheduler.get_pending_tasks()` uses `Task.is_due()` to keep only unfinished tasks due today or earlier, so future recurring copies stay out of today's plan. `Scheduler.build_daily_plan()` then skips any task longer than the minutes remaining and records why in `Scheduler.skipped`.
+
+### Conflict detection
+
+`Scheduler.detect_conflicts()` looks at today's pending tasks that have a preferred time. Each task covers a window from its start to its start plus its duration. Tasks are sorted by start time, and each one is compared with the tasks after it; two overlap when the next one starts before the current one ends. The loop stops early once no later task can overlap. Back-to-back tasks (07:30–08:00 then 08:00) are not conflicts. Each overlap becomes a warning string labeled "same pet" or "different pets", which `main.py` prints and the app shows with `st.warning`. The scheduler does not rearrange the plan to fix conflicts; it leaves that decision to the owner.
+
+### Recurring tasks
+
+Each `Task` has a `frequency` ("daily", "weekly", or "once") and a `due_date`. `Scheduler.complete_task()` marks the earliest open task with that title done, then calls `Task.next_occurrence()`, which uses `timedelta(days=1)` or `timedelta(weeks=1)` to create a fresh copy with the next due date and adds it to the same pet. `timedelta` handles month and year rollovers automatically.
 
 ## 📸 Demo Walkthrough
 
