@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import date, timedelta
 
 PRIORITY_SCORES = {"low": 1, "medium": 2, "high": 3}
 FREQUENCIES = ("daily", "weekly", "once")
+RECURRENCE_GAPS = {"daily": timedelta(days=1), "weekly": timedelta(weeks=1)}
 
 
 def to_minutes(hhmm: str) -> int:
@@ -30,6 +32,7 @@ class Task:
     time: str | None = None        # preferred start time "HH:MM", optional
     frequency: str = "daily"       # "daily", "weekly", or "once"
     completed: bool = False
+    due_date: date = field(default_factory=date.today)
 
     def __post_init__(self) -> None:
         """Normalize priority and reject invalid task values."""
@@ -47,6 +50,17 @@ class Task:
     def mark_complete(self) -> None:
         """Mark this task as done."""
         self.completed = True
+
+    def is_due(self, on: date) -> bool:
+        """Return True if this task is unfinished and due on or before the given day."""
+        return not self.completed and self.due_date <= on
+
+    def next_occurrence(self) -> Task | None:
+        """Return a fresh copy due one period later, or None for one-time tasks."""
+        gap = RECURRENCE_GAPS.get(self.frequency)
+        if gap is None:
+            return None
+        return replace(self, due_date=self.due_date + gap, completed=False)
 
     def priority_score(self) -> int:
         """Return a number for sorting (higher means more important)."""
@@ -123,16 +137,17 @@ class ScheduledTask:
 class Scheduler:
     """Builds and explains a daily care plan for an owner's pets."""
 
-    def __init__(self, owner: Owner) -> None:
-        """Set up a scheduler for one owner with an empty plan."""
+    def __init__(self, owner: Owner, today: date | None = None) -> None:
+        """Set up a scheduler for one owner and day, with an empty plan."""
         self.owner = owner
+        self.today = today or date.today()
         self.plan: list[ScheduledTask] = []
         self.skipped: list[tuple[Pet, Task, str]] = []
 
     def get_pending_tasks(self) -> list[tuple[Pet, Task]]:
-        """Ask the owner for all tasks, keeping only the unfinished ones."""
+        """Ask the owner for all tasks, keeping unfinished ones due today or earlier."""
         return [(pet, task) for pet, task in self.owner.get_all_tasks()
-                if not task.completed]
+                if task.is_due(self.today)]
 
     def sort_tasks(self, pairs: list[tuple[Pet, Task]]) -> list[tuple[Pet, Task]]:
         """Order by priority (high first), then preferred time, then shorter duration."""
@@ -145,10 +160,11 @@ class Scheduler:
 
     def sort_by_time(self, pairs: list[tuple[Pet, Task]] | None = None
                      ) -> list[tuple[Pet, Task]]:
-        """Return (pet, task) pairs ordered by preferred time, untimed tasks last."""
+        """Return (pet, task) pairs ordered by due date, then time, untimed tasks last."""
         if pairs is None:
             pairs = self.owner.get_all_tasks()
-        return sorted(pairs, key=lambda pair: (pair[1].time is None, pair[1].time or ""))
+        return sorted(pairs, key=lambda pair: (
+            pair[1].due_date, pair[1].time is None, pair[1].time or ""))
 
     def filter_tasks(self, pet_name: str | None = None, completed: bool | None = None
                      ) -> list[tuple[Pet, Task]]:
@@ -184,16 +200,24 @@ class Scheduler:
 
         return self.plan
 
-    def complete_task(self, pet_name: str, title: str) -> bool:
-        """Mark a pet's task complete. Return True if it was found."""
+    def complete_task(self, pet_name: str, title: str) -> Task | None:
+        """Mark a pet's earliest open task with this title done; schedule its next occurrence.
+
+        Returns the newly created next task, or None if the task was one-time
+        or no matching open task was found.
+        """
         pet = self.owner.get_pet(pet_name)
         if pet is None:
-            return False
-        for task in pet.tasks:
-            if task.title == title and not task.completed:
-                task.mark_complete()
-                return True
-        return False
+            return None
+        open_tasks = [t for t in pet.tasks if t.title == title and not t.completed]
+        if not open_tasks:
+            return None
+        task = min(open_tasks, key=lambda t: t.due_date)
+        task.mark_complete()
+        next_task = task.next_occurrence()
+        if next_task is not None:
+            pet.add_task(next_task)
+        return next_task
 
     def explain_plan(self) -> str:
         """Return a readable explanation of the plan and why it looks that way."""

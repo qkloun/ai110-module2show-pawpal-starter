@@ -86,6 +86,26 @@ else:
                 except ValueError as error:
                     st.error(str(error))
 
+# --- Complete a task: Scheduler.complete_task() also creates the next occurrence ---
+open_tasks = [(pet, task) for pet, task in owner.get_all_tasks() if not task.completed]
+if open_tasks:
+    st.subheader("Mark a Task Complete")
+    with st.form("complete_task_form"):
+        choice = st.selectbox(
+            "Task",
+            range(len(open_tasks)),
+            format_func=lambda i: (f"{open_tasks[i][0].name}: {open_tasks[i][1].title} "
+                                   f"(due {open_tasks[i][1].due_date:%a %b %d})"),
+        )
+        if st.form_submit_button("Mark complete"):
+            pet, task = open_tasks[choice]
+            next_task = Scheduler(owner).complete_task(pet.name, task.title)
+            if next_task:
+                st.success(f"Done! Next '{task.title}' added for "
+                           f"{next_task.due_date:%a %b %d}.")
+            else:
+                st.success(f"Done! '{task.title}' was a one-time task.")
+
 # --- Current pets and tasks: read straight from the Owner object ---
 st.subheader("Your Pets")
 if not owner.pets:
@@ -100,9 +120,10 @@ for pet in owner.pets:
                 "Priority": task.priority,
                 "Preferred time": task.time or "-",
                 "Frequency": task.frequency,
+                "Due": task.due_date.strftime("%a %b %d"),
                 "Done": "✅" if task.completed else "",
             }
-            for task in pet.tasks
+            for task in sorted(pet.tasks, key=lambda t: (t.due_date, t.time or "99:99"))
         ])
     else:
         st.caption("No tasks yet.")

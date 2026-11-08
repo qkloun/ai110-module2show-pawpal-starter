@@ -13,8 +13,8 @@ def print_tasks(heading: str, pairs) -> None:
         print("  (none)")
     for pet, task in pairs:
         status = "done" if task.completed else "todo"
-        print(f"  {task.time or '--:--'}  {pet.name:<6} {task.title:<18} "
-              f"[{task.priority}] ({status})")
+        print(f"  {task.due_date:%a %b %d}  {task.time or '--:--'}  {pet.name:<6} "
+              f"{task.title:<18} [{task.priority}, {task.frequency}] ({status})")
 
 
 def main() -> None:
@@ -32,7 +32,7 @@ def main() -> None:
     luna.add_task(Task("Clean litter box", 10, "medium", time="09:00"))
     mochi.add_task(Task("Morning walk", 30, "high", time="07:30"))
     luna.add_task(Task("Breakfast", 10, "high", time="07:45"))
-    luna.add_task(Task("Trim claws", 10, "low"))                     # no time
+    luna.add_task(Task("Trim claws", 10, "low", frequency="once"))   # no time, one-off
 
     scheduler = Scheduler(owner)
     scheduler.complete_task("Luna", "Breakfast")
@@ -47,6 +47,20 @@ def main() -> None:
     print_tasks("Mochi's pending tasks, sorted by time:",
                 scheduler.sort_by_time(scheduler.filter_tasks(pet_name="Mochi",
                                                               completed=False)))
+
+    print("\n" + "=" * 60)
+    print("  Recurring task checks")
+    print("=" * 60)
+    for pet_name, title in [("Mochi", "Morning walk"), ("Mochi", "Brush coat"),
+                            ("Luna", "Trim claws")]:
+        next_task = scheduler.complete_task(pet_name, title)
+        if next_task:
+            print(f"  Completed {pet_name}'s {title} ({next_task.frequency}) "
+                  f"-> next one due {next_task.due_date:%a %b %d}")
+        else:
+            print(f"  Completed {pet_name}'s {title} -> no repeat")
+    print_tasks("Mochi's tasks after completing:",
+                scheduler.sort_by_time(scheduler.filter_tasks(pet_name="Mochi")))
 
     plan = scheduler.build_daily_plan()
     print("\n" + "=" * 60)
